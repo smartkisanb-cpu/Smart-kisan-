@@ -1,0 +1,28 @@
+.listing-product-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  color: #2f7953;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, .94), transparent 34%),
+    linear-gradient(135deg, #e2f0e4, #c9dfce);
+}
+
+.listing-product-art.plants {
+  color: #467f4e;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, .94), transparent 34%),
+    linear-gradient(135deg, #eaf2d9, #cfe3bd);
+}
+
+.listing-image::after {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.listing-live,
+.distance {
+  z-index: 2;
+}
