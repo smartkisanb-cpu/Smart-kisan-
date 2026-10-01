@@ -1,0 +1,1 @@
+- [Typed imports from legacy JS](typed-legacy-imports.md) — use explicit module declarations when preserving `.js` and `.jsx` sources in TypeScript packages.

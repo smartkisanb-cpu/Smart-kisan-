@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Smart Kisan Bharat"
+description = "A digital marketplace and operations dashboard connecting Indian farmers, crop buyers, and public-sector teams."
+version = "1.0.0"
+id = "artifacts/smart-kisan-bharat"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 3000
+
+[services.development]
+run = "pnpm --filter @workspace/smart-kisan-bharat run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/smart-kisan-bharat", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/smart-kisan-bharat/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "3000"
+BASE_PATH = "/"
