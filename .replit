@@ -26,5 +26,8 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-VITE_SUPABASE_URL = "https://sespylunrmnbvcpuabsl.supabase.co"
-VITE_SUPABASE_ANON_KEY = "sb_publishable_SCMPMTl6zG_ofglbnb-M-g_y_yf5epO"
+VITE_SUPABASE_URL = "https://ddlvqazxjqvgwzwdiexg.supabase.co"
+VITE_SUPABASE_ANON_KEY = "sb_publishable_mgxdhR1ZDNIVsOiNR9_4WQ_WumEdiyl"
+
+[nix]
+packages = ["nano"]
