@@ -107,7 +107,7 @@ export async function getListings({ market, state, district, query }) {
   const client = requireSupabase();
   let request = client
     .from('listings')
-    .select('id, crop, category, market, quantity, unit, location, state, district, radius_km, price, msp, quality, status, farmer_id, certified, posted_at, image_url')
+    .select('id, crop, category, market, quantity, unit, location, state, district, radius_km, price, msp, quality, status, farmer_id, certified, posted_at')
     .eq('market', market)
     .eq('status', 'live')
     .order('posted_at', { ascending: false });
@@ -130,6 +130,54 @@ export async function getBidsForListing(listingId) {
     buyer: bid.buyer_display,
     buyerType: bid.buyer_type,
   }));
+}
+
+export async function getBuyerActivity() {
+  const client = requireSupabase();
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError) throw new Error(userError.message);
+  if (!user) throw new Error('Sign in as a buyer to load your orders and notifications.');
+  const [ordersResult, notificationsResult] = await Promise.all([
+    client
+      .from('orders')
+      .select('id, order_number, quantity, status, created_at, listings!inner(crop, unit)')
+      .eq('buyer_id', user.id)
+      .order('created_at', { ascending: false }),
+    client
+      .from('notifications')
+      .select('id, type, title, detail, read_at, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false }),
+  ]);
+  const orders = unwrap(ordersResult) || [];
+  const notifications = unwrap(notificationsResult) || [];
+  return {
+    orders: orders.map((order) => ({
+      ...order,
+      orderNumber: order.order_number,
+      crop: Array.isArray(order.listings) ? order.listings[0]?.crop : order.listings?.crop,
+      unit: Array.isArray(order.listings) ? order.listings[0]?.unit : order.listings?.unit,
+    })),
+    notifications: notifications.map((notification) => ({
+      ...notification,
+      read: Boolean(notification.read_at),
+    })),
+    unread: notifications.filter((notification) => !notification.read_at).length,
+  };
+}
+
+export async function markBuyerNotificationsRead(ids) {
+  if (!ids.length) return;
+  const client = requireSupabase();
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError) throw new Error(userError.message);
+  if (!user) throw new Error('Sign in to update your notifications.');
+  unwrap(await client
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .is('read_at', null)
+    .in('id', ids));
 }
 
 export async function getBidsForFarmer(farmerId) {
@@ -163,7 +211,10 @@ export async function createListing(input) {
       quantity: input.quantity,
       unit: input.unit,
       location: input.location,
+      state: input.state,
+      district: input.district,
       price: input.price,
+      msp: input.msp ? Number(input.msp) : null,
       status: 'pending',
     })
     .select('id, crop, status')
@@ -198,7 +249,7 @@ export async function getGovernmentReport(tier = 'State') {
   const [listings, stats] = await Promise.all([
     client
       .from('listings')
-      .select('id, state, district, price, msp')
+      .select('id, crop, state, district, price, msp')
       .eq('status', 'live'),
     getMarketplaceStats(),
   ]);
@@ -211,11 +262,10 @@ export async function getGovernmentReport(tier = 'State') {
         ? listing.state || 'Unspecified'
         : listing.district || listing.state || 'Unspecified';
     const group = groups.get(name) || { total: 0, compliant: 0, belowMsp: 0 };
-    if (listing.msp != null && Number(listing.msp) > 0) {
-      group.total += 1;
-      if (Number(listing.price) >= Number(listing.msp)) group.compliant += 1;
-      else group.belowMsp += 1;
-    }
+    if (listing.msp == null || Number(listing.msp) <= 0) continue;
+    group.total += 1;
+    if (Number(listing.price) >= Number(listing.msp)) group.compliant += 1;
+    else group.belowMsp += 1;
     groups.set(name, group);
   }
   const complianceByDistrict = [...groups.entries()]
@@ -226,7 +276,7 @@ export async function getGovernmentReport(tier = 'State') {
     .sort((left, right) => left.name.localeCompare(right.name));
   const totalTracked = [...groups.values()].reduce((sum, group) => sum + group.total, 0);
   const compliant = [...groups.values()].reduce((sum, group) => sum + group.compliant, 0);
-  const belowMsp = rows.filter((listing) => listing.msp != null && Number(listing.price) < Number(listing.msp));
+  const belowMsp = rows.filter((listing) => listing.msp != null && Number(listing.msp) > 0 && Number(listing.price) < Number(listing.msp));
   return {
     updatedAt: new Date().toISOString(),
     kpis: {
